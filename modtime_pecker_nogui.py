@@ -7,9 +7,7 @@ import argparse
 import json
 import os
 import sys
-import tkinter as tk
 from datetime import datetime
-from tkinter import ttk, filedialog, messagebox
 
 import pyperclip
 from tqdm import tqdm
@@ -132,157 +130,6 @@ def save2json(rst):
     print(msg)
     return msg
 
-def gui():
-    def browse_folder():
-        folder_path = filedialog.askdirectory()
-        if folder_path:
-            path_entry.delete(0, tk.END)
-            path_entry.insert(0, folder_path)
-
-    def check_modification_time():
-        target_path = path_entry.get()
-        if not target_path:
-            messagebox.showerror("Error", "Please select a folder.")
-            return
-
-        try:
-            rst = get_latest_modification_time(target_path)[0]
-            result_text.delete("1.0", tk.END)
-            result_text.insert(tk.END, rst)
-            status_label.config(text="Status: Check completed.")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
-            status_label.config(text="Status: Error occurred.")
-
-    def check_script_folder_time():
-        script_path = os.path.dirname(os.path.realpath(sys.executable))
-        try:
-            rst = get_latest_modification_time(script_path)[0]
-            result_text.delete("1.0", tk.END)
-            result_text.insert(tk.END, rst)
-            status_label.config(text="Status: Check completed.")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
-            status_label.config(text="Status: Error occurred.")
-
-    def copy_to_clipboard():
-        result = result_text.get("1.0", tk.END)
-        if result.strip():
-            pyperclip.copy(result)
-            messagebox.showinfo("Info", "Result copied to clipboard.")
-        else:
-            messagebox.showwarning("Warning", "Nothing to copy.")
-
-    def save_as_txt():
-        result = result_text.get("1.0", tk.END)
-        if result.strip():
-            filename = filedialog.asksaveasfilename(
-                defaultextension=".txt",
-                filetypes=[("Text files", "*.txt")]
-            )
-            if filename:
-                with open(filename, 'w', encoding='utf-8') as f:
-                    f.write(result)
-                messagebox.showinfo("Info", f"Result saved as {filename}.")
-        else:
-            messagebox.showwarning("Warning", "Nothing to save.")
-
-    def save_as_json():
-        result = result_text.get("1.0", tk.END)
-        if result.strip():
-            filename = filedialog.asksaveasfilename(
-                defaultextension=".json",
-                filetypes=[("JSON files", "*.json")]
-            )
-            if filename:
-                paragraphs = result.split('\n\n')
-                # 去除空段落
-                for paragraph in paragraphs:
-                    if not paragraph:
-                        paragraphs.remove(paragraph)
-                json_dict = {}
-                for paragraph in paragraphs:
-                    lines = paragraph.split('\n')
-                    target_path = lines[0][3:-3]
-                    json_dict[target_path] = []
-                    for line in lines[1:]:
-                        try:
-                            mtime, entry_name = line.strip().split(' - ')
-                        except ValueError:
-                            # 提醒用户尽量避免修改结果文本之后再保存
-                            error_msg = (f"Invalid text: \n'{line}'\n"
-                                         f"Please avoid modifying the "
-                                         f"result text before saving.")
-                            messagebox.showerror("Error", error_msg)
-                            return
-                        json_dict[target_path].append({mtime: entry_name})
-                with open(filename, 'w', encoding='utf-8') as f:
-                    json.dump(json_dict, f, ensure_ascii=False, indent=4)
-                messagebox.showinfo("Info", f"Result saved as {filename}.")
-        else:
-            messagebox.showwarning("Warning", "Nothing to save.")
-
-    root = tk.Tk()
-    root.title("Modtime Pecker - Latest Modification Time Checker")
-    root.geometry('800x600')
-
-    # 文件夹路径
-    folder_frame = ttk.Frame(root)
-    folder_frame.pack(pady=10)
-
-    ttk.Label(folder_frame, text="Folder Path:").grid(
-        row=0, column=0, padx=5, pady=5)
-    path_entry = ttk.Entry(folder_frame, width=50)
-    path_entry.grid(row=0, column=1, padx=5, pady=5)
-
-    browse_button = ttk.Button(folder_frame,
-                               text="Browse",
-                               command=browse_folder)
-    browse_button.grid(row=0, column=2, padx=5, pady=5)
-
-    # 功能按钮
-    action_frame = ttk.Frame(root)
-    action_frame.pack(pady=10)
-
-    check_button = ttk.Button(action_frame,
-                              text="Check Modification Time",
-                              command=check_modification_time)
-    check_button.grid(row=0, column=0, padx=5, pady=5)
-
-    check_script_button = ttk.Button(action_frame,
-                                     text="Check Script Folder Time",
-                                     command=check_script_folder_time)
-    check_script_button.grid(row=0, column=1, padx=5, pady=5)
-
-    copy_button = ttk.Button(action_frame,
-                             text="Copy Result",
-                             command=copy_to_clipboard)
-    copy_button.grid(row=0, column=2, padx=5, pady=5)
-
-    save_txt_button = ttk.Button(action_frame,
-                                 text="Save as TXT",
-                                 command=save_as_txt)
-    save_txt_button.grid(row=0, column=3, padx=5, pady=5)
-
-    save_json_button = ttk.Button(action_frame,
-                                  text="Save as JSON",
-                                  command=save_as_json)
-    save_json_button.grid(row=0, column=4, padx=5, pady=5)
-
-    # 结果显示框
-    result_frame = ttk.Frame(root)
-    result_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-    ttk.Label(result_frame, text="Result:").pack(anchor=tk.W, padx=5, pady=5)
-    result_text = tk.Text(result_frame, wrap=tk.WORD, width=80, height=20)
-    result_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-    # 状态栏
-    status_label = ttk.Label(root, text="Status: Ready")
-    status_label.pack(side=tk.BOTTOM, padx=10, pady=5)
-
-    root.mainloop()
-
 def argparser():
     parser = argparse.ArgumentParser(
         description='Check the latest modification time of all '
@@ -298,9 +145,6 @@ def argparser():
     # 直接查看当前脚本所在文件夹
     parser.add_argument('-c', '--current', action='store_true',
                         help='Check the modification time of current folder')
-    # GUI界面
-    parser.add_argument('-g', '--gui', action='store_true',
-                        help='Use GUI interface')
     # 是否要复制结果到剪贴板
     parser.add_argument('-sc', '--save_clipboard', action='store_true',
                         help='Save(copy) the result to the clipboard')
@@ -315,9 +159,6 @@ def argparser():
 
 def cli():
     args = argparser()
-    if args.gui:
-        gui()
-        return
 
     # 获取所有目标路径
     script_path = os.path.dirname(os.path.realpath(sys.executable))
@@ -357,6 +198,5 @@ def cli():
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        gui()
-    else:
-        cli()
+        sys.argv.extend(['-c', '-st'])
+    cli()
